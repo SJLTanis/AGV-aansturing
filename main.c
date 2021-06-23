@@ -5,30 +5,31 @@
 
 // Defines
     // System functions
-    #define System_DDR DDRH
-    #define System_PORT DDRH
+    #define System_DDR DDRD
+    #define System_PORT DDRD
     #define noodstop PD2
     #define buzzer PD3
+    #define SystemOn PC4
 
     // Motor functions
-    #define Motors_DDR DDRH
-    #define Motors_Port PORTH
+    #define Motors_DDR DDRD
+    #define Motors_Port PORTD
     #define Motor_Len1 PD4
     #define Motor_Len2 PD5
     #define Motor_Ren1 PD6
     #define Motor_Ren2 PD7
 
 
-uint16_t rising, falling;
+uint16_t rising, rising2, rising3, falling, falling2, falling3;
 
-volatile uint32_t counts; //it protects the compiler from changing the value of the variable
-volatile uint32_t dist;
+volatile uint32_t counts, counts2, counts3; //it protects the compiler from changing the value of the variable
+volatile uint32_t dist, dist2, dist3;
 uint16_t us_per_count; //this is the measurement cycle
 
 
 void init_timer()
 {
-    DDRL |= (1<<2); // for the trigpin
+    DDRB |= (1<<2); // for the trigpin
     TCCR1A |= (1<<WGM12);
     TCCR1A |= (1<<CS11) | (1<<CS10); //clkdiv 64
     TCCR1A |= (1 << ICES1); //rising edge capture
@@ -40,11 +41,11 @@ void init_timer()
 
 void init_timer2()
 {
-    DDRL |= (1<<3); // for the trigpin
+    DDRB |= (1<<3); // for the trigpin
     TCCR1B |= (1<<WGM13);
     TCCR1B |= (1<<CS21) | (1<<CS20); //clkdiv 64
-    TCCR1B |= (1 << ICES2); //rising edge capture
-    TIMSK2 |= (1<<ICIE2) | (1<<OCIE2A);
+    TCCR1B |= (1 << ICES1); //rising edge capture
+    TIMSK2 |= (1<<ICIE1) | (1<<OCIE1A);
     OCR1A = 8750; //output compare waarde
     us_per_count = 4;
     sei();
@@ -52,11 +53,11 @@ void init_timer2()
 
 void init_timer3()
 {
-    DDRL |= (1<<4); // for the trigpin
-    TCCR1C |= (1<<WGM14);
-    TCCR1C |= (1<<CS31) | (1<<CS13); //clkdiv 64
-    TCCR1C |= (1 << ICES3); //rising edge capture
-    TIMSK3 |= (1<<ICIE3) | (1<<OCIE3A);
+    DDRB |= (1<<4); // for the trigpin
+    TCCR1C |= (1<<WGM11);
+    TCCR1C |= (1<<CS11) | (1<<CS10); //clkdiv 64
+    TCCR1C |= (1 << ICES1); //rising edge capture
+    TIMSK0 |= (1<<ICIE1) | (1<<OCIE1A);
     OCR1A = 8750; //output compare waarde
     us_per_count = 4;
     sei();
@@ -64,84 +65,108 @@ void init_timer3()
 
 ISR(TIMER1_CAPT_vect)
 {
-    if(TCCR1B & (1<<ICES1)) // trigger capture of rising edge
+    if(TCCR1A & (1<<ICES1)) // trigger capture of rising edge
     {
         rising = ICR1; // Save to Input Capture Register
-        TCCR1B &= ~(1<<ICES1); //detect the falling edge
+        TCCR1A &= ~(1<<ICES1); //detect the falling edge
     }
     else
     {
         falling = ICR1; //save input to capture register
-        TCCR1B |= (1<<ICES1); //capture the falling edge time
+        TCCR1A |= (1<<ICES1); //capture the falling edge time
         counts = (uint32_t)falling - (uint32_t)rising ; //difference in time between rising and falling edge
         dist = (uint32_t)us_per_count * counts / 58;  //in microseconds
     }
-}
 
-ISR(TIMER1_COMPA_vect)
-{
-    PORTL |= (1<<2); //trigger pin high
-    _delay_us(10); // wait 10 microseconds
-    PORTL &= ~(1<<2); // trigger pin low
-}
-
-ISR(TIMER2_CAPT_vect)
-{
-    if(TCCR2B & (1<<ICES2)) // trigger capture of rising edge
+    if(TCCR1B & (1<<ICES1)) // trigger capture of rising edge
     {
-        rising2 = ICR2; // Save to Input Capture Register
-        TCCR1B &= ~(1<<ICES2); //detect the falling edge
+        rising2 = ICR1; // Save to Input Capture Register
+        TCCR1B &= ~(1<<ICES1); //detect the falling edge
     }
     else
     {
-        falling2 = ICR2; //save input to capture register
-        TCCR2B |= (1<<ICES2); //capture the falling edge time
+        falling2 = ICR1; //save input to capture register
+        TCCR1B |= (1<<ICES1); //capture the falling edge time
         counts2 = (uint32_t)falling2 - (uint32_t)rising2 ; //difference in time between rising and falling edge
         dist2 = (uint32_t)us_per_count * counts / 58;  //in microseconds
     }
-}
 
-ISR(TIMER2_COMPA_vect)
-{
-    PORTL |= (1<<3); //trigger pin high
-    _delay_us(10); // wait 10 microseconds
-    PORTL &= ~(1<<3); // trigger pin low
-}
-
-ISR(TIMER3_CAPT_vect)
-{
-    if(TCCR3B & (1<<ICES3)) // trigger capture of rising edge
+    if(TCCR1C & (1<<ICES1)) // trigger capture of rising edge
     {
-        rising3 = ICR3; // Save to Input Capture Register
-        TCCR3B &= ~(1<<ICES3); //detect the falling edge
+        rising3 = ICR1; // Save to Input Capture Register
+        TCCR1C &= ~(1<<ICES1); //detect the falling edge
     }
     else
     {
-        falling3 = ICR3; //save input to capture register
-        TCCR3B |= (1<<ICES3); //capture the falling edge time
+        falling3 = ICR1; //save input to capture register
+        TCCR1C |= (1<<ICES1); //capture the falling edge time
         counts3 = (uint32_t)falling3 - (uint32_t)rising3 ; //difference in time between rising and falling edge
         dist3 = (uint32_t)us_per_count * counts / 58;  //in microseconds
     }
 }
 
-ISR(TIMER3_COMPA_vect)
+ISR(TIMER0_COMPA_vect)
 {
-    PORTL |= (1<<4); //trigger pin high
+    PORTB |= (1<<2); //trigger pin high
     _delay_us(10); // wait 10 microseconds
-    PORTL &= ~(1<<4); // trigger pin low
+    PORTB &= ~(1<<2); // trigger pin low
+}
+
+ISR(TIMER1_COMPA_vect)
+{
+    PORTB |= (1<<3); //trigger pin high
+    _delay_us(10); // wait 10 microseconds
+    PORTB &= ~(1<<3); // trigger pin low
+}
+
+ISR(TIMER2_COMPA_vect)
+{
+    PORTB |= (1<<4); //trigger pin high
+    _delay_us(10); // wait 10 microseconds
+    PORTB &= ~(1<<4); // trigger pin low
+}
+
+
+void Forward(){
+    PORTD |= (1<<Motor_Len1);
+    PORTD &= ~(1<<Motor_Len2);
+    PORTD |= (1<<Motor_Ren1);
+    PORTD &= ~(1<<Motor_Ren2);
+}
+
+void turnRight(){
+    PORTD &= ~(1<<Motor_Len1);
+    PORTD |= (1<<Motor_Len2);
+    PORTD |= (1<<Motor_Ren1);
+    PORTD &= ~(1<<Motor_Ren2);
+}
+
+void turnLeft(){
+    PORTD |= (1<<Motor_Len1);
+    PORTD &= ~(1<<Motor_Len2);
+    PORTD &= ~(1<<Motor_Ren1);
+    PORTD |= (1<<Motor_Ren2);
+}
+
+void Stop(){
+    PORTD &= ~(1<<Motor_Len1);
+    PORTD &= ~(1<<Motor_Len2);
+    PORTD &= ~(1<<Motor_Ren1);
+    PORTD &= ~(1<<Motor_Ren2);
 }
 
 int main(void)
 {
     // Open zetten van de system components
-    DDRH |= (1<<buzzer);
-    DDRH &= ~(1<<noodstop);
+    DDRD |= (1<<buzzer);
+    DDRD &= ~(1<<noodstop);
+    DDRC &= ~(1<<SystemOn);
 
     // Open zetten van de motor enables
-    DDRH |= (1<<Motor_Len1);
-    DDRH |= (1<<Motor_Len2);
-    DDRH |= (1<<Motor_Ren1);
-    DDRH |= (1<<Motor_Ren2);
+    DDRD |= (1<<Motor_Len1);
+    DDRD |= (1<<Motor_Len2);
+    DDRD |= (1<<Motor_Ren1);
+    DDRD |= (1<<Motor_Ren2);
 
     // Inits
     // Gemeten afstanden vanaf de 3 ultrasonische sensoren
@@ -158,11 +183,11 @@ int main(void)
 
     while (1)
     {
-        if((1<<System_On) && (Noodstop == 0)){ // Check of het systeem aanstaat en de noodstop niet ge-activeerd is
+        if((1<<SystemOn) && (noodstop == 0)){ // Check of het systeem aanstaat en de noodstop niet ge-activeerd is
             _delay_ms(5000); // Wait for placement or adjustments
 
             if(phase == 0){
-                stop();
+                Stop();
             }
 
             if(phase == 1){ // Iniatie oriëntatie fase
@@ -187,9 +212,9 @@ int main(void)
             if(phase == 2){ // Rijden en detecteren
                 if(pos == 1){
                     if(dist > 5 && dist3 > 10){
-                        forward();
+                        Forward();
                     } else {
-                        stop();
+                        Stop();
                         if(dist < 5){
                         phase = 3;
                         }
@@ -197,9 +222,9 @@ int main(void)
                 }
                 if(pos == 2){
                     if(dist > 5 && dist2 > 10){
-                        forward();
+                        Forward();
                     } else {
-                        stop();
+                        Stop();
                         if(dist < 5){
                         phase = 3;
                         }
@@ -207,9 +232,9 @@ int main(void)
                 }
                 if(pos == 3){
                     if(dist > 5 && dist3 > 10){
-                        forward();
+                        Forward();
                     } else {
-                        stop();
+                        Stop();
                         if(dist < 5){
                         phase = 3;
                         }
@@ -217,9 +242,9 @@ int main(void)
                 }
                 if(pos == 4){
                     if(dist > 5 && dist2 > 10){
-                        forward();
+                        Forward();
                     } else {
-                        stop();
+                        Stop();
                         if(dist < 5){
                         phase = 3;
                         }
@@ -234,7 +259,7 @@ int main(void)
                     }
                     if(dist < 100 && dist2 < 5 && dist3 > 200){
                         phase = 4;
-                        forward();
+                        Forward();
                     }
                 }
                 if(pos == 2){
@@ -243,7 +268,7 @@ int main(void)
                     }
                     if(dist < 80 && dist2 < 5 && dist3 > 200){
                         phase = 4;
-                        forward();
+                        Forward();
                     }
                 }
                 if(pos == 3){
@@ -252,7 +277,7 @@ int main(void)
                     }
                     if(dist < 80 && dist2 > 200 && dist3 < 5){
                         phase = 4;
-                        forward();
+                        Forward();
                     }
                 }
                 if(pos == 4){
@@ -261,7 +286,7 @@ int main(void)
                     }
                     if(dist < 100 && dist2 > 200 && dist3 < 5){
                         phase = 4;
-                        forward();
+                        Forward();
                     }
                 }
             }
@@ -269,28 +294,28 @@ int main(void)
             if(phase == 4){ // Rijden naar de juiste positie
                 if(pos == 1){
                     if(dist > 74){
-                        forward();
+                        Forward();
                     } else {
                         phase = 5;
                     }
                 }
                 if(pos == 2){
                     if(dist > 47){
-                        forward();
+                        Forward();
                     } else {
                         phase = 5;
                     }
                 }
                 if(pos == 3){
                     if(dist > 47){
-                        forward();
+                        Forward();
                     } else {
                         phase = 5;
                     }
                 }
                 if(pos == 4){
                     if(dist > 74){
-                        forward();
+                        Forward();
                     } else {
                         phase = 5;
                     }
@@ -304,7 +329,7 @@ int main(void)
                     }
                     if(dist > 200 && dist2 > 40 && dist3 < 70){
                         phase = 6;
-                        forward();
+                        Forward();
                     }
                 }
                 if(pos == 2){
@@ -313,7 +338,7 @@ int main(void)
                     }
                     if(dist > 200 && dist2 > 70 && dist3 < 40){
                         phase = 6;
-                        forward();
+                        Forward();
                     }
                 }
                 if(pos == 3){
@@ -322,7 +347,7 @@ int main(void)
                     }
                     if(dist > 200 && dist2 < 70 && dist3 > 40){
                         phase = 6;
-                        forward();
+                        Forward();
                     }
                 }
                 if(pos == 4){
@@ -331,17 +356,17 @@ int main(void)
                     }
                     if(dist > 200 && dist2 > 40 && dist3 < 70){
                         phase = 6;
-                        forward();
+                        Forward();
                     }
                 }
             }
 
             if(phase == 6){ // Rijden en bomen detecteren
-                if(post == 1){
+                if(pos == 1){
                     if(dist > 5 && dist2 > 10){
-                        forward();
+                        Forward();
                     } else {
-                        stop();
+                        Stop();
                         if(dist < 5){
                         phase = 7;
                         }
@@ -349,9 +374,9 @@ int main(void)
                 }
                 if(pos == 2){
                     if(dist > 5 && dist2 > 10){
-                        forward();
+                        Forward();
                     } else {
-                        stop();
+                        Stop();
                         if(dist < 5){
                         phase = 7;
                         }
@@ -359,9 +384,9 @@ int main(void)
                 }
                 if(pos == 3){
                     if(dist > 5 && dist2 > 10){
-                        forward();
+                        Forward();
                     } else {
-                        stop();
+                        Stop();
                         if(dist < 5){
                         phase = 7;
                         }
@@ -369,9 +394,9 @@ int main(void)
                 }
                 if(pos == 4){
                     if(dist > 5 && dist2 > 10){
-                        forward();
+                        Forward();
                     } else {
-                        stop();
+                        Stop();
                         if(dist < 5){
                         phase = 7;
                         }
@@ -386,7 +411,7 @@ int main(void)
                     }
                     if(dist > 70 && dist2 < 200 && dist3 < 5){
                         phase = 8;
-                        forward();
+                        Forward();
                     }
                 }
                 if(pos == 2){
@@ -395,7 +420,7 @@ int main(void)
                     }
                     if(dist > 40 && dist2 < 200 && dist3 < 5){
                         phase = 8;
-                        forward();
+                        Forward();
                     }
                 }
                 if(pos == 3){
@@ -404,7 +429,7 @@ int main(void)
                     }
                     if(dist < 40 && dist2 < 5 && dist3 < 200){
                         phase = 8;
-                        forward();
+                        Forward();
                     }
                 }
                 if(pos == 4){
@@ -413,7 +438,7 @@ int main(void)
                     }
                     if(dist < 70 && dist2 < 5 && dist3 < 200){
                         phase = 8;
-                        forward();
+                        Forward();
                     }
                 }
             }
@@ -421,28 +446,28 @@ int main(void)
             if(phase == 8){ // Rijden naar de juiste positie
                 if(pos == 1){
                     if(dist > 47){
-                        forward();
+                        Forward();
                     } else {
                         phase = 9;
                     }
                 }
                 if(pos == 2){
                     if(dist > 5){
-                        forward();
+                        Forward();
                     } else {
                         phase = 9;
                     }
                 }
                 if(pos == 3){
                     if(dist > 5){
-                        forward();
+                        Forward();
                     } else {
                         phase = 9;
                     }
                 }
                 if(pos == 4){
                     if(dist > 5){
-                        forward();
+                        Forward();
                     } else {
                         phase = 9;
                     }
@@ -456,7 +481,7 @@ int main(void)
                     }
                     if(dist > 200 && dist2 < 80 && dist3 < 50){
                         phase = 10;
-                        forward();
+                        Forward();
                     }
                 }
                 if(pos == 2){
@@ -465,7 +490,7 @@ int main(void)
                     }
                     if(dist > 200 && dist2 > 100 && dist3 < 5){
                         phase = 10;
-                        forward();
+                        Forward();
                     }
                 }
                 if(pos == 3){
@@ -474,7 +499,7 @@ int main(void)
                     }
                     if(dist > 200 && dist2 > 100 && dist3 < 5){
                         phase = 10;
-                        forward();
+                        Forward();
                     }
                 }
                 if(pos == 4){
@@ -483,17 +508,17 @@ int main(void)
                     }
                     if(dist > 200 && dist2 < 5 && dist3 < 100){
                         phase = 10;
-                        forward();
+                        Forward();
                     }
                 }
             }
 
             if(phase == 10){ // Rij uitrijden en bomen detecteren
-                if(post == 1){
+                if(pos == 1){
                     if(dist > 5 && dist3 > 10){
-                        forward();
+                        Forward();
                     } else {
-                        stop();
+                        Stop();
                         if(dist < 5){
                         phase = 0;
                         }
@@ -501,9 +526,9 @@ int main(void)
                 }
                 if(pos == 2){
                     if(dist > 5 && dist2 > 10){
-                        forward();
+                        Forward();
                     } else {
-                        stop();
+                        Stop();
                         if(dist < 5){
                         phase = 0;
                         }
@@ -511,9 +536,9 @@ int main(void)
                 }
                 if(pos == 3){
                     if(dist > 5 && dist3 > 10){
-                        forward();
+                        Forward();
                     } else {
-                        stop();
+                        Stop();
                         if(dist < 5){
                         phase = 0;
                         }
@@ -521,9 +546,9 @@ int main(void)
                 }
                 if(pos == 4){
                         if(dist > 5 && dist3 > 10){
-                        forward();
+                        Forward();
                     } else {
-                        stop();
+                        Stop();
                         if(dist < 5){
                         phase = 0;
                         }
@@ -531,35 +556,9 @@ int main(void)
                 }
             }
         } else {
-            stop();
+            Stop();
         }
     }
 }
 
-int forward(void){
-    PORTH |= (1<<Motor_Len1);
-    PORTH &= ~(1<<Motor_Len2);
-    PORTH |= (1<<Motor_Ren1);
-    PORTH &= ~(1<<Motor_Ren2);
-}
 
-int turnRight(void){
-    PORTH &= ~(1<<Motor_Len1);
-    PORTH |= (1<<Motor_Len2);
-    PORTH |= (1<<Motor_Ren1);
-    PORTH &= ~(1<<Motor_Ren2);
-}
-
-int turnLeft(void){
-    PORTH |= (1<<Motor_Len1);
-    PORTH &= ~(1<<Motor_Len2);
-    PORTH &= ~(1<<Motor_Ren1);
-    PORTH |= (1<<Motor_Ren2);
-}
-
-int stop(void){
-    PORTH &= ~(1<<Motor_Len1);
-    PORTH &= ~(1<<Motor_Len2);
-    PORTH &= ~(1<<Motor_Ren1);
-    PORTH &= ~(1<<Motor_Ren2);
-}
